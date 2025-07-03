@@ -1,0 +1,101 @@
+<script>
+  const CONTRACT_ADDRESS = "0xf33C6570a05304fA8e3ef58c7212F9666Cb074f2";
+  const ABI = [ /* paste your ABI here or load from file if preferred */ 
+    {
+      "inputs": [],
+      "name": "mint",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalSupply",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ];
+
+  let web3;
+  let contract;
+
+  function adjustQuantity(change) {
+    const input = document.getElementById("quantity");
+    let value = parseInt(input.value) + change;
+    if (value < 1) value = 1;
+    if (value > 10) value = 10;
+    input.value = value;
+  }
+
+  async function connectWallet() {
+    if (window.ethereum) {
+      try {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        web3 = new Web3(window.ethereum);
+        contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
+        alert("Wallet connected!");
+        updateMintedCount();
+      } catch (error) {
+        alert("Connection error: " + error.message);
+      }
+    } else {
+      alert("Please install MetaMask.");
+    }
+  }
+
+  async function mintNFT() {
+    if (!contract || !web3) {
+      alert("Please connect wallet first.");
+      return;
+    }
+
+    document.getElementById("spinner").style.display = "block";
+    try {
+      const accounts = await web3.eth.getAccounts();
+      await contract.methods.mint().send({ from: accounts[0] });
+      alert("Minted successfully!");
+      updateMintedCount();
+    } catch (error) {
+      alert("Minting failed: " + (error.message || error));
+    } finally {
+      document.getElementById("spinner").style.display = "none";
+    }
+  }
+
+  async function updateMintedCount() {
+    if (!contract) return;
+    try {
+      const total = await contract.methods.totalSupply().call();
+      document.getElementById("mintedCount").textContent = `${total} / 21,000 minted`;
+    } catch (err) {
+      console.error("Could not fetch totalSupply:", err);
+    }
+  }
+
+  function updateCountdown() {
+    const target = Date.UTC(2025, 6, 30, 10, 45); // July 30, 10:45 UTC
+    const now = new Date().getTime();
+    const diff = target - now;
+
+    if (diff <= 0) {
+      document.getElementById("countdown").textContent = "Mint is live!";
+      return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
+
+    document.getElementById("countdown").textContent =
+      `Mint starts in: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+
+    setTimeout(updateCountdown, 1000);
+  }
+
+  window.onload = function () {
+    updateCountdown();
+    document.getElementById("mintButton").textContent = "Free Mint";
+  };
+</script>
