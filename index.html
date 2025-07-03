@@ -1,101 +1,199 @@
-<script>
-  const CONTRACT_ADDRESS = "0xf33C6570a05304fA8e3ef58c7212F9666Cb074f2";
-  const ABI = [ /* paste your ABI here or load from file if preferred */ 
-    {
-      "inputs": [],
-      "name": "mint",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "totalSupply",
-      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-      "stateMutability": "view",
-      "type": "function"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ETH LEGEND</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #111;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
-  ];
+    .header {
+      display: flex;
+      justify-content: flex-end;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #00b894;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .container {
+      text-align: center;
+      flex-grow: 1;
+      padding: 20px;
+    }
+    .preview-image {
+      width: 250px;
+      height: auto;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      border: 5px solid #00b894;
+      box-shadow: 0 0 15px rgba(0, 255, 180, 0.4);
+    }
+    .countdown {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #ccc;
+    }
+    .mint-controls {
+      margin: 20px 0;
+    }
+    .quantity-buttons {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+    .quantity-buttons button {
+      font-size: 18px;
+      padding: 5px 15px;
+      background-color: #444;
+    }
+    .minted-count {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #888;
+    }
+    #mintButton {
+      margin-top: 20px;
+      width: 200px;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      background-color: #111;
+    }
+    .about {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #ccc;
+      padding: 0 10px;
+    }
+    #spinner {
+      display: none;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <button onclick="connectWallet()">Connect Wallet</button>
+  </div>
+  <div class="container">
+    <img src="https://ipfs.io/ipfs/QmZgSv6hvZAvxZhcvnYeGbpRU6hZ2EGyB32zU5m5MZSLkV" alt="NFT Preview" class="preview-image" />
+    <h1>ETH LEGEND</h1>
+    <div class="countdown" id="countdown">Mint starts in: calculating...</div>
+    <div class="mint-controls">
+      <div class="quantity-buttons">
+        <button onclick="adjustQuantity(-1)">−</button>
+        <input type="number" id="quantity" value="1" min="1" max="10" readonly style="width: 50px; text-align: center;" />
+        <button onclick="adjustQuantity(1)">+</button>
+      </div>
+      <div class="minted-count" id="mintedCount">0 / 21,000 minted</div>
+      <button id="mintButton" onclick="mintNFT()">Free Mint</button>
+      <div id="spinner">⏳ Minting...</div>
+    </div>
+    <div class="about">
+      On July 30th, Ethereum celebrates its anniversary — and so does the chain. <strong>ETH LEGEND</strong> is born to honor Ethereum’s legacy with a collection of futuristic warriors forged on-chain. Be part of the legend.
+    </div>
+  </div>
+  <div class="footer"></div>
 
-  let web3;
-  let contract;
+  <script>
+    const CONTRACT_ADDRESS = "0xf33C6570a05304fA8e3ef58c7212F9666Cb074f2";
+    const ABI = [
+      { "inputs": [], "name": "mint", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+      { "inputs": [], "name": "totalSupply", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
+    ];
+    let web3;
+    let contract;
 
-  function adjustQuantity(change) {
-    const input = document.getElementById("quantity");
-    let value = parseInt(input.value) + change;
-    if (value < 1) value = 1;
-    if (value > 10) value = 10;
-    input.value = value;
-  }
+    function adjustQuantity(change) {
+      const input = document.getElementById("quantity");
+      let value = parseInt(input.value) + change;
+      if (value < 1) value = 1;
+      if (value > 10) value = 10;
+      input.value = value;
+    }
 
-  async function connectWallet() {
-    if (window.ethereum) {
+    async function connectWallet() {
+      if (window.ethereum) {
+        try {
+          await window.ethereum.request({ method: "eth_requestAccounts" });
+          web3 = new Web3(window.ethereum);
+          contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
+          alert("Wallet connected!");
+          updateMintedCount();
+        } catch (error) {
+          alert("Connection error: " + error.message);
+        }
+      } else {
+        alert("Please install MetaMask.");
+      }
+    }
+
+    async function mintNFT() {
+      if (!contract || !web3) {
+        alert("Please connect wallet first.");
+        return;
+      }
+      document.getElementById("spinner").style.display = "block";
       try {
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        web3 = new Web3(window.ethereum);
-        contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
-        alert("Wallet connected!");
+        const accounts = await web3.eth.getAccounts();
+        await contract.methods.mint().send({ from: accounts[0] });
+        alert("Minted successfully!");
         updateMintedCount();
       } catch (error) {
-        alert("Connection error: " + error.message);
+        alert("Minting failed: " + (error.message || error));
+      } finally {
+        document.getElementById("spinner").style.display = "none";
       }
-    } else {
-      alert("Please install MetaMask.");
-    }
-  }
-
-  async function mintNFT() {
-    if (!contract || !web3) {
-      alert("Please connect wallet first.");
-      return;
     }
 
-    document.getElementById("spinner").style.display = "block";
-    try {
-      const accounts = await web3.eth.getAccounts();
-      await contract.methods.mint().send({ from: accounts[0] });
-      alert("Minted successfully!");
-      updateMintedCount();
-    } catch (error) {
-      alert("Minting failed: " + (error.message || error));
-    } finally {
-      document.getElementById("spinner").style.display = "none";
-    }
-  }
-
-  async function updateMintedCount() {
-    if (!contract) return;
-    try {
-      const total = await contract.methods.totalSupply().call();
-      document.getElementById("mintedCount").textContent = `${total} / 21,000 minted`;
-    } catch (err) {
-      console.error("Could not fetch totalSupply:", err);
-    }
-  }
-
-  function updateCountdown() {
-    const target = Date.UTC(2025, 6, 30, 10, 45); // July 30, 10:45 UTC
-    const now = new Date().getTime();
-    const diff = target - now;
-
-    if (diff <= 0) {
-      document.getElementById("countdown").textContent = "Mint is live!";
-      return;
+    async function updateMintedCount() {
+      if (!contract) return;
+      try {
+        const total = await contract.methods.totalSupply().call();
+        document.getElementById("mintedCount").textContent = `${total} / 21,000 minted`;
+      } catch (err) {
+        console.error("Could not fetch totalSupply:", err);
+      }
     }
 
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const minutes = Math.floor((diff / (1000 * 60)) % 60);
-    const seconds = Math.floor((diff / 1000) % 60);
+    function updateCountdown() {
+      const el = document.getElementById("countdown");
+      if (!el) return;
+      const target = Date.UTC(2025, 6, 30, 10, 45); // July 30 UTC
+      const now = new Date().getTime();
+      const diff = target - now;
+      if (diff <= 0) {
+        el.textContent = "Mint is live!";
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+      el.textContent = `Mint starts in: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+      setTimeout(updateCountdown, 1000);
+    }
 
-    document.getElementById("countdown").textContent =
-      `Mint starts in: ${days}d ${hours}h ${minutes}m ${seconds}s`;
-
-    setTimeout(updateCountdown, 1000);
-  }
-
-  window.onload = function () {
-    updateCountdown();
-    document.getElementById("mintButton").textContent = "Free Mint";
-  };
-</script>
+    window.onload = function () {
+      updateCountdown();
+      document.getElementById("mintButton").textContent = "Free Mint";
+    };
+  </script>
+</body>
+</html>
